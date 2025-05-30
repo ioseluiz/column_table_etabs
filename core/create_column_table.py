@@ -7,7 +7,7 @@ from openpyxl import Workbook
 from utils import extractions
 
 
-from elements.story import Story
+# from elements.story import Story
 
 from dxf_drawer.drawing import Drawing
 from dxf_drawer.detail import Detail

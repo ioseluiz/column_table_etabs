@@ -53,14 +53,14 @@ class MainMenuScreen(QMainWindow):
         self.title_label.setAlignment(Qt.AlignCenter)
 
         # --- Menu Buttons ---
-        self.btn_start_game = QPushButton("Crear cuadro de cols")
-        self.btn_connect_etabs = QPushButton("Conectar con archivo de ETABS abierto")
+        # self.btn_start_game = QPushButton("Crear cuadro de cols")
+        # self.btn_connect_etabs = QPushButton("Conectar con archivo de ETABS abierto")
         self.btn_identify_columns = QPushButton("Identificar Columnas")
         self.btn_exit = QPushButton("Salir del Programa")
 
         # Set object names for specific styling
-        self.btn_start_game.setObjectName("StdButton")
-        self.btn_connect_etabs.setObjectName("StdButton")
+        # self.btn_start_game.setObjectName("StdButton")
+        # self.btn_connect_etabs.setObjectName("StdButton")
         self.btn_identify_columns.setObjectName("StdButton")
         self.btn_exit.setObjectName("ExitButton")
 
@@ -73,8 +73,8 @@ class MainMenuScreen(QMainWindow):
         button_layout = QVBoxLayout()
         button_layout.setSpacing(15)
         button_layout.addWidget(self.btn_identify_columns)
-        button_layout.addWidget(self.btn_start_game)
-        button_layout.addWidget(self.btn_connect_etabs)
+        # button_layout.addWidget(self.btn_start_game)
+        # button_layout.addWidget(self.btn_connect_etabs)
         button_layout.addWidget(self.btn_exit)
 
         self.main_layout.addLayout(button_layout)
@@ -83,8 +83,8 @@ class MainMenuScreen(QMainWindow):
         )
 
         # --- Connect Signals to Slots (Button Actions) ---
-        self.btn_start_game.clicked.connect(self.start_game)
-        self.btn_connect_etabs.clicked.connect(self.connect_to_etabs_instance)
+        # self.btn_start_game.clicked.connect(self.start_game)
+        # self.btn_connect_etabs.clicked.connect(self.connect_to_etabs_instance)
         self.btn_identify_columns.clicked.connect(self.identificar_columnas)
         self.btn_exit.clicked.connect(self.exit_application)
 
