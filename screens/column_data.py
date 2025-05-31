@@ -2,7 +2,8 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QSpacerItem, QSizePolicy, QFileDialog,
-    QTableWidget, QTableWidgetItem, QScrollArea, QFrame, QComboBox
+    QTableWidget, QTableWidgetItem, QScrollArea, QFrame, QComboBox,
+    QTextEdit
     
 )
 from PyQt5.QtGui import QFont, QPixmap 
@@ -63,7 +64,27 @@ class ColumnDataScreen(QWidget):
         info_button_layout.addWidget(self.btn_info_stories)
         info_button_layout.addWidget(self.btn_grid_lines)
         
-        self.main_layout.addLayout(info_button_layout)
+        self.main_layout.addLayout(info_button_layout, stretch=1)
+        
+        # Seccion de Botones para Seleccionar ubicacion de los archivos generados
+        file_button_layout = QVBoxLayout()
+
+        lbl_folder = QLabel("Seleccionar el folder donde se van a generar los archivos:")
+        file_button_layout.addWidget(lbl_folder)
+        folder_button_layout = QHBoxLayout()
+        self.btn_folder_selection = QPushButton("Seleccionar")
+        
+        self.btn_folder_selection.clicked.connect(self.select_folder)
+        
+        self.txt_folder_selection = QTextEdit()
+        self.txt_folder_selection.setFixedHeight(40)
+        folder_button_layout.addWidget(self.btn_folder_selection)
+        folder_button_layout.addWidget(self.txt_folder_selection)
+        
+        
+        file_button_layout.addLayout(folder_button_layout)
+        
+        self.main_layout.addLayout(file_button_layout)
         
         # -- Area de Tabs para Datos de Columnas
         self.tabs_layout = QHBoxLayout()
@@ -218,20 +239,7 @@ class ColumnDataScreen(QWidget):
         group_rectangular_layout.addWidget(self.table_rectangular_armado)
         group_rectangular_layout.addWidget(lbl_rectangular_resultados)
         # group_rectangular_layout.addWidget(self.table_rectangular_resultados)
-        
-        # Placeholder par Circular
-        # group_circular_layout = QVBoxLayout()
-        # lbl_circular_armado = QLabel("[Circular] Armado transversal")
-        # lbl_circular_resultados = QLabel("[Circular] Resultados")
-        # self.table_circular_armado = QTableWidget(5, 3)
-        # self.table_circular_armado.setHorizontalHeaderLabels(["Piso", "Columna", "Sección"])
-        # self.table_circular_resultados = QTableWidget(5, 4)
-        # self.table_circular_resultados.setHorizontalHeaderLabels(["CONF...", "ID Ramas vert.", "CONF...", "ID Ramas horiz."])
-
-        # group_circular_layout.addWidget(lbl_circular_armado)
-        # group_circular_layout.addWidget(self.table_circular_armado)
-        # group_circular_layout.addWidget(lbl_circular_resultados)
-        # group_circular_layout.addWidget(self.table_circular_resultados)
+    
 
         self.tabs_layout.addLayout(group_rectangular_layout)
         # self.tabs_layout.addLayout(group_circular_layout)
@@ -244,7 +252,7 @@ class ColumnDataScreen(QWidget):
         scroll_area.setWidget(scroll_content_widget)
         scroll_area.setFrameShape(QFrame.NoFrame) # Sin borde para el área de scroll
 
-        self.main_layout.addWidget(scroll_area) # Añadir el área de scroll al layout principal
+        self.main_layout.addWidget(scroll_area, stretch=10) # Añadir el área de scroll al layout principal
         
         # -- Boton de Volver
         bottom_layout = QHBoxLayout()
@@ -294,6 +302,8 @@ class ColumnDataScreen(QWidget):
         self.btn_actualizar_modelo.setStyleSheet(action_button_style)
         self.btn_info_stories.setStyleSheet(action_button_style)
         self.btn_grid_lines.setStyleSheet(action_button_style)
+        
+        
 
         # Estilo para el botón de volver (más grande y centrado)
         self.btn_back_to_menu.setStyleSheet("""
@@ -420,6 +430,14 @@ class ColumnDataScreen(QWidget):
         
     def show_info_gridlines(self):
         self.gridlines_window_ref.show()
+        
+    def select_folder(self):
+        folder_path = QFileDialog.getExistingDirectory(self, "Seleccionar un folder", "")
+        
+        if folder_path:
+            self.txt_folder_selection.setText(folder_path)
+        else:
+            print("Seleccion de Folder cancelada.")
 
 
     def go_back_to_main_menu(self):
