@@ -314,7 +314,7 @@ def get_column_labels(sap_model):
 def get_story_lable_col_name(sap_model):
     if sap_model is None:
         print("Error: El objeto SapModel proporcionado no es válido.")
-        return []
+        return [], None
 
     column_data = []
     number_names, mynames, mylabels, mystories, ret = (
@@ -367,14 +367,17 @@ def get_story_lable_col_name(sap_model):
                     info["pos_y"] = coordinates[1]
                     info["z_start"] = coordinates[2]
                     info["z_end"] = coordinates[3]
-
+                    nivel_start = clasificar_punto_por_elevacion(stories, info['z_start'])
+                    nivel_end = clasificar_punto_por_elevacion(stories, info['z_end'])
+                    info['nivel_start'] = nivel_start
+                    info['nivel_end'] = nivel_end
                     # Stories
                     info["story_start"] = get_story_by_elevation(
                         stories, info["z_start"]
                     )
                     info["story_end"] = get_story_by_elevation(stories, info["z_end"])
                     info["start_end_level"] = (
-                        f"{get_next_story(stories, info['story'])}@{info['story']}"
+                        f"{nivel_start}@{nivel_end}"
                     )
                     # Rebar Data
                     rebar_data = get_rebar_data(sap_model, info["section"])
@@ -423,6 +426,10 @@ def get_story_lable_col_name(sap_model):
     # - an arrray of unique categories
     # Add 1 in order that identifiers start in 1 not in 0
     df_columns_sorted["GridLine"] = pd.factorize(df_columns_sorted["temp_grid"])[0] + 1
+    
+    df_gridlines = df_columns_sorted.drop_duplicates(subset=["GridLine", "pos_x","pos_y"])
+    gridlines_data = df_gridlines.to_dict(orient="records")
+    
 
     gridlines = df_columns_sorted["GridLine"].unique()
 
@@ -445,7 +452,7 @@ def get_story_lable_col_name(sap_model):
 
     labels = df_columns_sorted["label"].unique()
 
-    return cols_data
+    return cols_data, gridlines_data
 
 
 def get_col_section(sap_model, frame_name):
@@ -558,3 +565,27 @@ def get_stories_with_elevations(sap_model):
         print(f"Ocurrio un error inesperado: {e}")
 
     return list_stories_elevations
+
+def clasificar_punto_por_elevacion(lista_niveles, elevacion_punto):
+    # -- 1.Manejar la lista vacia
+    if not lista_niveles:
+        print('Advertencia: La lista de niveles esta vacia')
+        return None
+    
+    # -- 2.Ordenar los niveles por de forma ascendente --
+    # Esto es crucial para que la logica funcione correctamente
+    nivels_ordenados = sorted(lista_niveles, key=lambda item: item['elevacion'])
+    
+    # -- 3. Iterar de forma inversa (del nivel mas alto al nivel mas bajo)
+    for nivel_actual in reversed(nivels_ordenados):
+        # -- 4. Comprobar la condicion
+        # Si la elevacion del punto del punto es mayor o igual a la del nivel actual....
+        if elevacion_punto >= nivel_actual['elevacion']:
+            # ... hemos encontrado el nivel correcto.
+            # Como vamos de arriba hacia abajo, este es el primer (y por tanto, el correcto)
+            # nivel que cumple la condicion
+            return nivel_actual['nombre']
+        
+    # -- 5. Manejar caso en donde el punto esta por debajo de todos los niveles --
+    print(f"INFO: El punto con elevacion {elevacion_punto} esta por debajo del nivel mas bajo.")
+    return None

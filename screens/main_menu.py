@@ -24,6 +24,8 @@ from core.etabs import UNITS_LENGTH_CM, UNITS_FORCE_KGF, UNITS_TEMP_C
 # Import Screens
 from screens.column_data import ColumnDataScreen
 from screens.open_file import OpenFileWindow
+from screens.info_stories import InfoStoriesScreen
+from screens.info_gridlines import InfoGridLinesScreen
 
 
 class MainMenuScreen(QMainWindow):
@@ -35,6 +37,8 @@ class MainMenuScreen(QMainWindow):
         self.new_game_window = None  # Attribute to hold the new game window instance
         self.column_data_screen = None  # Atributo para la nueva pantalla
         self.sap_model_connected = None  # Para almacenar el objeto SapModel
+        self.info_stories_screen = None # Window with Stories Data
+        self.info_gridlines_screen = None # Window with GridLines Data
 
         # --- Central Widget and Layout ---
         self.central_widget = QWidget(self)
@@ -262,8 +266,9 @@ class MainMenuScreen(QMainWindow):
         etabs.establecer_units_etabs(
             sap_model, UNITS_FORCE_KGF, UNITS_LENGTH_CM, UNITS_TEMP_C
         )
-        data_cols_labels_story = etabs.get_story_lable_col_name(sap_model)
-
+        data_cols_labels_story, gridlines_data = etabs.get_story_lable_col_name(sap_model)
+        # Get stories with elevation
+        stories_with_elevations = etabs.get_stories_with_elevations(sap_model)
         # Get defined rebars
         defined_rebars = etabs.get_defined_rebars(sap_model)
         # Get concrete sections
@@ -277,15 +282,28 @@ class MainMenuScreen(QMainWindow):
 
         # print(data_cols_labels_story)
         ####
+        # Crear y esconder InfoStoriesScreen
+        if not self.info_stories_screen:
+            self.info_stories_screen = InfoStoriesScreen(stories_with_elevations)
+            self.info_stories_screen.hide()
+            
+        # Crear y esconder  InfoGridLinesScreen
+        if not self.info_gridlines_screen:
+            self.info_gridlines_screen = InfoGridLinesScreen(gridlines_data)
+            
+            self.info_gridlines_screen.hide()
         # Crear y mostrar ColumnDataScreen
         if not self.column_data_screen:
             self.column_data_screen = ColumnDataScreen(
                 main_menu_ref=self,
+                stories_window_ref= self.info_stories_screen,
+                gridlines_window_ref= self.info_gridlines_screen,
                 sap_model_object=sap_model,
                 column_data=data_cols_labels_story,
                 rect_sections=sections,
                 rebars=rebars,
             )
+            self.info_gridlines_screen.datos_para_renombrar.connect(self.column_data_screen.realizar_renombrado)
         else:
             # Si ya existe, actualiza la referencia al sap_model por si acaso
             self.column_data_screen.sap_model = self.sap_model_connected
@@ -294,6 +312,8 @@ class MainMenuScreen(QMainWindow):
 
         self.column_data_screen.show()
         self.hide()  # Ocultar el menú principal
+        
+       
 
     def exit_application(self):
         print("Action: Salir del Programa clicked!")
