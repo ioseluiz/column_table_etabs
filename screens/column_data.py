@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QSpacerItem, QSizePolicy, QFileDialog,
     QTableWidget, QTableWidgetItem, QScrollArea, QFrame, QComboBox,
-    QTextEdit
+    QTextEdit, QMessageBox
     
 )
 from PyQt5.QtGui import QFont, QPixmap 
@@ -48,11 +48,11 @@ class ColumnDataScreen(QWidget):
         top_button_layout.setSpacing(5) # Menor espaciado para botones de accion
         
         self.btn_modificar_columnas = QPushButton("1. Reasignar Columnas")
-        self.btn_exportar_excel = QPushButton("2. Exportar a Excel")
-        self.btn_exportar_planos = QPushButton("3. Exportar DXF")
-        self.btn_actualizar_modelo = QPushButton("4. Actualizar el Modelo")
+        self.btn_exportar_excel = QPushButton("Exportar a Excel")
+        self.btn_exportar_planos = QPushButton("Exportar DXF")
+        self.btn_actualizar_modelo = QPushButton("Actualizar el Modelo")
         
-        top_button_layout.addWidget(self.btn_modificar_columnas)
+        # top_button_layout.addWidget(self.btn_modificar_columnas)
         top_button_layout.addWidget(self.btn_exportar_excel)
         top_button_layout.addWidget(self.btn_exportar_planos)
         top_button_layout.addWidget(self.btn_actualizar_modelo)
@@ -454,12 +454,13 @@ class ColumnDataScreen(QWidget):
         
         # Obtener el folder donde se van a guardar los archivos
         folder_path = self.txt_folder_selection.toPlainText()
-    
+        full_filename = str(Path(folder_path) / "cuadro_columnas.xlsx")
         
         # Revisar que column records tenga todo lo necesario para exportar a excel
         # cols_records = column_list_dict
         if folder_path:
             export_excel.generate_excel_table(folder_path, stories_list_dict, gridlines_list_dict, column_list_dict)
+            QMessageBox.information(self, "Proceso Completado",f"Archivo {full_filename} creado de forma exitosa.")
         else:
             print("Seleccione un folder en donde guardar los archivos.")#stories_data, grid_lines, column_records
         
@@ -582,11 +583,11 @@ class ColumnDataScreen(QWidget):
             
         
         drawing = Drawing(
-            filename=filename,
+            filename=full_filename,
             list_details=detalles
         )
         drawing.create_dxf()
-            
+        QMessageBox.information(self, "Proceso Completado",f"Archivo {full_filename} creado de forma exitosa.")
             
         
             

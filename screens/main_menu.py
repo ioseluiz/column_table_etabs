@@ -14,9 +14,10 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem,
     QScrollArea,
     QFrame,
+    QProgressDialog
 )
 from PyQt5.QtGui import QFont, QPixmap
-from PyQt5.QtCore import Qt, QSize, QT_VERSION_STR, PYQT_VERSION_STR
+from PyQt5.QtCore import Qt, QSize, QT_VERSION_STR, PYQT_VERSION_STR, QObject, pyqtSignal, QThread
 
 from core import create_column_table, etabs
 from core.etabs import UNITS_LENGTH_CM, UNITS_FORCE_KGF, UNITS_TEMP_C
@@ -26,6 +27,51 @@ from screens.column_data import ColumnDataScreen
 from screens.open_file import OpenFileWindow
 from screens.info_stories import InfoStoriesScreen
 from screens.info_gridlines import InfoGridLinesScreen
+
+class Worker(QObject):
+    # Signal cuando acabe el proceso
+    finished = pyqtSignal()
+    progress = pyqtSignal(str)
+    crear_ventana_signal = pyqtSignal(dict)
+    
+    def __init__(self, sap_model):
+        super().__init__()
+        self.sap_model = sap_model
+    
+    def run(self):
+         # Set units to kg-cm
+        etabs.establecer_units_etabs(
+            self.sap_model, UNITS_FORCE_KGF, UNITS_LENGTH_CM, UNITS_TEMP_C
+        )
+        
+        data_cols_labels_story, gridlines_data = etabs.get_story_lable_col_name(self.sap_model)
+        # Get stories with elevation
+        stories_with_elevations = etabs.get_stories_with_elevations(self.sap_model)
+        # Get defined rebars
+        defined_rebars = etabs.get_defined_rebars(self.sap_model)
+        # Get concrete sections
+        rect_sections = etabs.get_rect_concrete_sections(self.sap_model)
+        sections = []
+        rebars = []
+        for item in rect_sections:
+            sections.append(item["Nombre"])
+        for item in defined_rebars:
+            rebars.append(item["Nombre"])
+            
+        # Emitir signal con info
+        self.crear_ventana_signal.emit({
+            'data_cols_labels_story': data_cols_labels_story,
+            'stories_with_elevations': stories_with_elevations,
+            'defined_rebars': defined_rebars,
+            'rect_sections': rect_sections,
+            'sections': sections,
+            'rebars': rebars,
+            'sap_model': self.sap_model,
+            'gridlines_data': gridlines_data
+        })
+        
+        self.finished.emit()
+        
 
 
 class MainMenuScreen(QMainWindow):
@@ -258,31 +304,88 @@ class MainMenuScreen(QMainWindow):
 
     def identificar_columnas(self):
         print("Action: Identificar Columnas")
+        # Deshabilitamos el botón para no iniciar el proceso dos veces
+        self.btn_identify_columns.setEnabled(False)
+        
+        # --- Configuración del Diálogo de Progreso ---
+        self.progress_dialog = QProgressDialog("Procesando, por favor espere...", None, 0, 0, self)
+        self.progress_dialog.setWindowTitle("Proceso en Curso")
+        self.progress_dialog.setWindowModality(Qt.WindowModal)
+        self.progress_dialog.show()
+        
         # Obtener Modelo
         sap_model = etabs.obtener_sapmodel_etabs()
-        print(sap_model)
-        self.sap_model_connected = sap_model
-        # Set units to kg-cm
-        etabs.establecer_units_etabs(
-            sap_model, UNITS_FORCE_KGF, UNITS_LENGTH_CM, UNITS_TEMP_C
-        )
-        data_cols_labels_story, gridlines_data = etabs.get_story_lable_col_name(sap_model)
-        # Get stories with elevation
-        stories_with_elevations = etabs.get_stories_with_elevations(sap_model)
-        # Get defined rebars
-        defined_rebars = etabs.get_defined_rebars(sap_model)
-        # Get concrete sections
-        rect_sections = etabs.get_rect_concrete_sections(sap_model)
-        sections = []
-        rebars = []
-        for item in rect_sections:
-            sections.append(item["Nombre"])
-        for item in defined_rebars:
-            rebars.append(item["Nombre"])
+        
+        # --- Configuración del Hilo y el Trabajador ---
+        self.thread = QThread()
+        self.trabajador = Worker(sap_model)
+        
+        # Mover el trabajador al hilo
+        self.trabajador.moveToThread(self.thread)
+        
+        # --- Conexión de Señales y Slots ---
+        # 1. Cuando el hilo inicie, ejecuta el método run() del trabajador.
+        self.thread.started.connect(self.trabajador.run)
+        
+        # 2. Cuando el trabajador termine, cierra el diálogo y el hilo.
+        self.trabajador.finished.connect(self.thread.quit)
+        self.trabajador.finished.connect(self.progress_dialog.close)
+        
+        # 3. Limpiar los objetos después de que el hilo haya terminado.
+        self.trabajador.finished.connect(self.trabajador.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        
+        # 4. Volver a habilitar el botón cuando el hilo termine.
+        self.thread.finished.connect(lambda: self.btn_identify_columns.setEnabled(True))
+        # self.thread.finished.connect(lambda: self.etiqueta.setText("¡Proceso completado!"))
+        
+        # Opcional: Actualizar el texto del diálogo con el progreso
+        self.trabajador.progress.connect(self.progress_dialog.setLabelText)
+        
+        self.trabajador.crear_ventana_signal.connect(self.pasar_info_para_ventanas)
+        
+        # --- Iniciar el Hilo ---
+        self.thread.start()
+        
+        
+        
+        # print(sap_model)
+        # self.sap_model_connected = sap_model
+        # # Set units to kg-cm
+        # etabs.establecer_units_etabs(
+        #     sap_model, UNITS_FORCE_KGF, UNITS_LENGTH_CM, UNITS_TEMP_C
+        # )
+        
+        # data_cols_labels_story, gridlines_data = etabs.get_story_lable_col_name(sap_model)
+        # # Get stories with elevation
+        # stories_with_elevations = etabs.get_stories_with_elevations(sap_model)
+        # # Get defined rebars
+        # defined_rebars = etabs.get_defined_rebars(sap_model)
+        # # Get concrete sections
+        # rect_sections = etabs.get_rect_concrete_sections(sap_model)
+        # sections = []
+        # rebars = []
+        # for item in rect_sections:
+        #     sections.append(item["Nombre"])
+        # for item in defined_rebars:
+            # rebars.append(item["Nombre"])
 
         # print(data_cols_labels_story)
         ####
-        # Crear y esconder InfoStoriesScreen
+        
+       
+       
+        
+    def pasar_info_para_ventanas(self, datos):
+        sap_model = datos['sap_model']
+        data_cols_labels_story = datos['data_cols_labels_story']
+        sections = datos['sections']
+        rect_sections = datos['rect_sections']
+        rebars = datos['rebars']
+        stories_with_elevations = datos['stories_with_elevations']
+        gridlines_data = datos['gridlines_data']
+        
+         # Crear y esconder InfoStoriesScreen
         if not self.info_stories_screen:
             self.info_stories_screen = InfoStoriesScreen(stories_with_elevations)
             self.info_stories_screen.hide()
@@ -312,8 +415,6 @@ class MainMenuScreen(QMainWindow):
 
         self.column_data_screen.show()
         self.hide()  # Ocultar el menú principal
-        
-       
 
     def exit_application(self):
         print("Action: Salir del Programa clicked!")

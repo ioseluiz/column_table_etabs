@@ -275,5 +275,8 @@ class RectangularColumn:
             (x3_coord, y3_coord),
             (x_coord, y_coord)
         ]
+        self.corner_hook_coords_right = [
+            
+        ]
 
 

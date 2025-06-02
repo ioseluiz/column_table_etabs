@@ -362,13 +362,13 @@ def generate_excel_table(folder_path, stories_data, grid_lines_data, column_reco
     col_rows = []
     for item in range(0, len(stories_reverse)-1):
         col_rows.append(
-            {'level':f"{stories_reverse[item+1]}@{stories_reverse[item]}",
+            {'level':f"{stories_reverse[item+1]['Name']}@{stories_reverse[item]['Name']}",
              'row': 9*item+2 }
         )
         # Top Border
         ws.cell(row=9*item+2, column=1).border = TOP_BORDER
         ws.cell(row=9*item+2, column=2).border = TOP_BORDER
-        ws.cell(row=9*item+2, column=1).value = f"{stories_reverse[item+1]}@{stories_reverse[item]}"
+        ws.cell(row=9*item+2, column=1).value = f"{stories_reverse[item+1]['Name']}@{stories_reverse[item]['Name']}"
         ws.cell(row=9*item+2, column=2).value = "b x h"
        
         ws.cell(row=9*item+3, column=2).value = "f'c"
@@ -396,8 +396,10 @@ def generate_excel_table(folder_path, stories_data, grid_lines_data, column_reco
 
     # Columns Data
     gridline_columns = []
+    print(col_rows)
     counter_col = 0
     for x in grid_lines:
+        print(x)
         ws.cell(row=1, column=3+counter_col).value = f"{x}"
         ws.cell(row=1, column=3+counter_col).border = TOP_BORDER
         for y in range(0, len(stories_reverse)-1):
@@ -415,46 +417,51 @@ def generate_excel_table(folder_path, stories_data, grid_lines_data, column_reco
             #print(record['GridLine'], record['nivel start'], record['nivel end'], record['Sección'],record['bxh'],record['As'],record['fc'],record['Rebar. Est.'],record['Detalle No.'])
             columns_records_reduced.append(record)
             
-    analisis_gridlines_iguales = agrupar_gridlines_por_contenido(columns_records_reduced)
+    # analisis_gridlines_iguales = agrupar_gridlines_por_contenido(columns_records_reduced)
     
    
-    print(json.dumps(analisis_gridlines_iguales, indent=2))
+    # print(json.dumps(analisis_gridlines_iguales, indent=2))
             
             
         
     # Column Dataframe
-    # for record in column_records:
-    #     print(record)
-    #     excel_column = get_excel_col(gridline_columns, record['GridLine'])
-    #     excel_row = get_excel_row(col_rows, record['start_end_level'])
-    #     if excel_row:
-    #         if excel_column:
-    #                 #bxh
-    #                 ws.cell(row=excel_row, column=excel_column).value = record['bxh']
-    #                 #f'c
-    #                 ws.cell(row=excel_row+1, column=excel_column).value = record['fc']
-    #                 # As
-    #                 ws.cell(row=excel_row+2, column=excel_column).value = record['As']
-    #                 # Detalle
-    #                 rebar_diameter = get_diameter(record['Rebar'])/10
-    #                 # Lo
-    #                 h_floor = 10 * (float(record['End Z']) - float(record['Start Z'])) # convert to mm
-    #                 ws.cell(row=excel_row+7, column=excel_column).value = calcular_lo_aci_318_19(max(float(record['depth'])*10, float(record['width'])*10), h_floor, "mm") / 10
-    #                 # Espaciamiento Estribos en Lo
-    #                 ws.cell(row=excel_row+3, column=excel_column).value =calcular_espaciamiento_estribos_confinamiento_columnas_aci_318_19(
-    #                     min(float(record['depth'])*10, float(record['width'])*10),
-    #                     rebar_diameter*10,
-    #                     420, # grado 60
-    #                     300,
-    #                     unidades="mm",
-    #                     fy_units="MPa"
-    #                 )[0]
-    #                 ws.cell(row=excel_row+8, column=excel_column).value = record['Detalle No.']
+    for record in columns_records_reduced:
+        # print(record)
+        excel_column = get_excel_col(gridline_columns, record['GridLine'])
+        excel_row = get_excel_row(col_rows, record['start_end_level'])
+        print(excel_row, excel_column)
+        if excel_row:
+            if excel_column:
+                    #bxh
+                    ws.cell(row=excel_row, column=excel_column).value = record['bxh']
+                    #f'c
+                    ws.cell(row=excel_row+1, column=excel_column).value = record['fc']
+                    # As
+                    ws.cell(row=excel_row+2, column=excel_column).value = record['As']
+                    # Estribo externos
+                    ws.cell(row=excel_row+5, column=excel_column).value = record['Rebar. Est.']
+                    # Estribo internos
+                    ws.cell(row=excel_row+6, column=excel_column).value = record['Rebar. Est.']
+                    # Detalle
+                    rebar_diameter = get_diameter(record['Rebar'])/10
+                    # Lo
+                    h_floor = 10 * (float(record['End Z']) - float(record['Start Z'])) # convert to mm
+                    ws.cell(row=excel_row+7, column=excel_column).value = calcular_lo_aci_318_19(max(float(record['depth'])*10, float(record['width'])*10), h_floor, "mm") / 10
+                    # Espaciamiento Estribos en Lo
+                    ws.cell(row=excel_row+3, column=excel_column).value =calcular_espaciamiento_estribos_confinamiento_columnas_aci_318_19(
+                        min(float(record['depth'])*10, float(record['width'])*10),
+                        rebar_diameter*10,
+                        420, # grado 60
+                        300,
+                        unidades="mm",
+                        fy_units="MPa"
+                    )[0]
+                    ws.cell(row=excel_row+8, column=excel_column).value = record['Detalle No.']
 
-    # # deterctar cells bxh empties
-    # detectar_bxh_empty(ws, stories_reverse, grid_lines)
+    # deterctar cells bxh empties
+    detectar_bxh_empty(ws, stories_reverse, grid_lines)
                 
 
-    
-    # wb.save('cuadro_columnas.xlsx')
-    # print('ARCHIVO EXCEL CREADO')
+    full_filename = str(Path(folder_path) / 'cuadro_columnas.xlsx')
+    wb.save(full_filename)
+    print('ARCHIVO EXCEL CREADO')
