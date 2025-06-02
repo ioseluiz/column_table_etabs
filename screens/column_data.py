@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QSpacerItem, QSizePolicy, QFileDialog,
@@ -14,6 +15,10 @@ import pandas as pd
 from core import create_column_table, export_excel, etabs
 
 from screens.identify_column import IdentificarColumnasScreen
+
+from dxf_drawer.drawing import Drawing
+from dxf_drawer.detail import Detail
+from dxf_drawer.column import RectangularColumn
 
 
 class ColumnDataScreen(QWidget):
@@ -44,7 +49,7 @@ class ColumnDataScreen(QWidget):
         
         self.btn_modificar_columnas = QPushButton("1. Reasignar Columnas")
         self.btn_exportar_excel = QPushButton("2. Exportar a Excel")
-        self.btn_exportar_planos = QPushButton("3. Exportar Planos")
+        self.btn_exportar_planos = QPushButton("3. Exportar DXF")
         self.btn_actualizar_modelo = QPushButton("4. Actualizar el Modelo")
         
         top_button_layout.addWidget(self.btn_modificar_columnas)
@@ -94,7 +99,10 @@ class ColumnDataScreen(QWidget):
         lbl_rectangular_armado = QLabel("[Rectangular] Armado transversal")
         lbl_rectangular_resultados = QLabel("[Rectangular] Resultados")
         self.table_rectangular_armado = QTableWidget(len(column_data), 24) # Filas, Columnas de ejemplo
-        self.table_rectangular_armado.setHorizontalHeaderLabels(["Story","GridLine","Frame_id","Start Z", "End Z" ,"Label","Sección", "depth","width", "Material", "Long. R2 Bars", "Long. R3 Bars","Rebar", "Mat. Est.","Rebar. Est.","Cover","Detalle No.","bxh","As","fc","Rebar Estribo", "start_end_level"])
+        self.table_rectangular_armado.setHorizontalHeaderLabels(["Story","GridLine","Frame_id","Start Z", "End Z" ,"Label","Sección", "depth","width",
+                                                                 "Material", "Long. R2 Bars", "Long. R3 Bars","Rebar",
+                                                                 "Mat. Est.","Rebar. Est.","Cover","Detalle No.","bxh","As",
+                                                                 "fc","Rebar Estribo", "nivel start", "nivel end","start_end_level"])
         
         print(column_data[0].keys())
         print(column_data[0])
@@ -332,20 +340,11 @@ class ColumnDataScreen(QWidget):
             
     def exportar_excel_action(self):
         print("Click Exportar a Excel")
-        # options = QFileDialog.Options()
-        # file_path, _ = QFileDialog.getSaveFileName(self,
-        #                                            "Guardar archivo Excel",
-        #                                            "",
-        #                                            "Archivos Excel (*.xlsx);;Todos los archivos (*)",
-        #                                            options=options)
-        
-        # if file_path:
-        #     # Ensure the file has an .xlsx extension
-        #     if not file_path.endswith('.xlsx'):
-        #         file_path += '.xlsx'
                 
         
         column_list_dict = []
+        stories_list_dict = []
+        gridlines_list_dict = []
         num_filas = self.table_rectangular_armado.rowCount()
         num_columnas = self.table_rectangular_armado.columnCount()
         
@@ -360,17 +359,28 @@ class ColumnDataScreen(QWidget):
             #     # Usar un nombre generico
             #     header_item.append(f"Columna_{col+1}")
                 
-            
+        print(table_headers)
         for fila in range(num_filas):
             diccionario_fila = {}
             for columna in range(num_columnas):
-                item = self.table_rectangular_armado.item(fila, columna)
-                if item is not None and item.text() is not None:
-                    clave = table_headers[columna]
-                    diccionario_fila[clave] = item.text()
+                if columna in [6, 12,14]:
+                    widget_combo = self.table_rectangular_armado.cellWidget(fila, columna)
+                    if isinstance(widget_combo, QComboBox):
+                        texto_combo = widget_combo.currentText()
+                        if texto_combo is not None:
+                            clave = table_headers[columna]
+                            diccionario_fila[clave] = texto_combo
+                        else:
+                            clave=table_headers[columna]
+                            diccionario_fila[clave] = None
                 else:
-                    clave = table_headers[columna]
-                    diccionario_fila[clave] = None
+                    item = self.table_rectangular_armado.item(fila, columna)
+                    if item is not None and item.text() is not None:
+                        clave = table_headers[columna]
+                        diccionario_fila[clave] = item.text()
+                    else:
+                        clave = table_headers[columna]
+                        diccionario_fila[clave] = None
                     
             # Solo agregar el diccionario si no esta completamente vacio
             if any(diccionario_fila.values()):
@@ -379,29 +389,79 @@ class ColumnDataScreen(QWidget):
                 column_list_dict.append(diccionario_fila)
                 
         # Obtener stories
-        ## Get SapModel
-        sap_model = etabs.obtener_sapmodel_etabs()
-        stories = etabs.get_stories_with_elevations(sap_model)
-        stories_data = []
-        for x in stories:
-            print(x['nombre'])
-            stories_data.append(x['nombre'])
+        ## Leer stories desde la ventana info_stories
+        num_filas_stories = self.stories_window_ref.table_stories_info.rowCount()
+        num_cols_stories = self.stories_window_ref.table_stories_info.columnCount()
+        ### Headers de la Tabla Stories Info
+        stories_headers = []
+        for col in range(num_cols_stories):
+            header_item = self.stories_window_ref.table_stories_info.horizontalHeaderItem(col)
+            if header_item is not None and header_item.text():
+                stories_headers.append(header_item.text())
+                
+        ## Data de la Tabla Stories
+        for fila in range(num_filas_stories):
+            diccionario_fila = {}
+            for columna in range(num_cols_stories):
+                item = self.stories_window_ref.table_stories_info.item(fila,columna)
+                if item is not None and item.text() is not None:
+                    clave = stories_headers[columna]
+                    diccionario_fila[clave] = item.text()
+                    
+                else:
+                    clave = stories_headers[columna]
+                    diccionario_fila[clave] = None
+                    
+            # Solo agregar el diccionario si no esta completamente vacio
+            if any(diccionario_fila.values()):
+                stories_list_dict.append(diccionario_fila)
+            elif not diccionario_fila:
+                stories_list_dict.append(diccionario_fila)
+                
+        ## Data de la Tabla GridLines
+        num_filas_gridlines = self.gridlines_window_ref.table_gridlines_info.rowCount()
+        num_cols_gridlines = self.gridlines_window_ref.table_gridlines_info.columnCount()
+        print(num_filas_gridlines, num_cols_gridlines)
         
+        gridlines_headers = []
+        for col in range(num_cols_gridlines):
+            header_item = self.gridlines_window_ref.table_gridlines_info.horizontalHeaderItem(col)
+            if header_item is not None and header_item.text():
+                gridlines_headers.append(header_item.text())
+                
+        for fila in range(num_filas_gridlines):
+            diccionario_fila = {}
+            for columna in range(num_cols_gridlines):
+                item = self.gridlines_window_ref.table_gridlines_info.item(fila,columna)
+                if item is not None and item.text() is not None:
+                    clave = gridlines_headers[columna]
+                    diccionario_fila[clave] = item.text()
+                else:
+                    clave = gridlines_headers[columna]
+                    diccionario_fila[clave] = None
+                    
+            # Solo agregar el diccionario si no esta completamente vacio
+            if any(diccionario_fila.values()):
+                gridlines_list_dict.append(diccionario_fila)
+            elif not diccionario_fila:
+                gridlines_list_dict.append(diccionario_fila)
+                
+                
+        # -- DEBUG
+        print(column_list_dict)
+        print(stories_list_dict)
+        print(gridlines_list_dict)
         
-        
-        # Obtener los GridLines
-        gridlines = []
-        for item in column_list_dict:
-            if item['GridLine'] not in gridlines:
-                gridlines.append(item['GridLine'])
-            
+        # Obtener el folder donde se van a guardar los archivos
+        folder_path = self.txt_folder_selection.toPlainText()
     
         
-        
         # Revisar que column records tenga todo lo necesario para exportar a excel
-        cols_records = column_list_dict
-                
-        export_excel.generate_excel_table(stories_data, gridlines, cols_records) #stories_data, grid_lines, column_records
+        # cols_records = column_list_dict
+        if folder_path:
+            export_excel.generate_excel_table(folder_path, stories_list_dict, gridlines_list_dict, column_list_dict)
+        else:
+            print("Seleccione un folder en donde guardar los archivos.")#stories_data, grid_lines, column_records
         
     def realizar_renombrado(self, mapa_valores):
         print(f"Recibiendo datos para renombrar: {mapa_valores}")
@@ -418,12 +478,123 @@ class ColumnDataScreen(QWidget):
                 if texto_celda in mapa_valores:
                     nuevo_valor = mapa_valores[texto_celda]
                     item.setText(nuevo_valor)
-                    print(f"Cambiado '{texto_celda}' por '{nuevo_valor}' en ({fila}, 1)")       
-                    
+                    print(f"Cambiado '{texto_celda}' por '{nuevo_valor}' en ({fila}, 1)")
+                        
+           
                     
          
     def exportar_planos_action(self):
-        pass
+        folder_path = self.txt_folder_selection.toPlainText()
+        filename = 'detalles_columnas.dxf'
+        full_filename = str(Path(folder_path) / filename)
+        
+        # Lectura de la informacion de la tabla de las columnas
+        num_filas = self.table_rectangular_armado.rowCount()
+        num_columnas = self.table_rectangular_armado.columnCount()
+        
+        column_list_dict = []
+        
+        # Obtener los headers de la tabla
+        table_headers = []
+        for col in range(num_columnas):
+            header_item = self.table_rectangular_armado.horizontalHeaderItem(col)
+            if header_item is not None and header_item.text():
+                table_headers.append(header_item.text())
+                
+        print(table_headers)
+        print(len(table_headers))
+        for fila in range(num_filas):
+            diccionario_fila = {}
+            for columna in range(num_columnas):
+                if columna in [6, 12,14]:
+                    widget_combo = self.table_rectangular_armado.cellWidget(fila, columna)
+                    if isinstance(widget_combo, QComboBox):
+                        texto_combo = widget_combo.currentText()
+                        if texto_combo is not None:
+                            clave = table_headers[columna]
+                            diccionario_fila[clave] = texto_combo
+                        else:
+                            clave=table_headers[columna]
+                            diccionario_fila[clave] = None
+                else:
+                    item = self.table_rectangular_armado.item(fila, columna)
+                    if item is not None and item.text() is not None:
+                        clave = table_headers[columna]
+                        diccionario_fila[clave] = item.text()
+                    else:
+                        clave = table_headers[columna]
+                        diccionario_fila[clave] = None
+                    
+            # Solo agregar el diccionario si no esta completamente vacio
+            if any(diccionario_fila.values()):
+                column_list_dict.append(diccionario_fila)
+            elif not diccionario_fila:
+                column_list_dict.append(diccionario_fila)
+        
+        df_columns = pd.DataFrame(column_list_dict)
+        
+        lista_detalles = df_columns.drop_duplicates(subset=['Detalle No.'])
+        lista_detalles_dict = lista_detalles.to_dict(orient='records')
+        
+        # Create list of columns
+        detalles = []
+        start_point = (100,100)
+        width_detail = 4000
+        height_detail = 4000
+        counter = 0
+        for section in lista_detalles_dict:
+            detalle = section['Detalle No.']
+            origin_point = (start_point[0], start_point[1] - (height_detail*counter))
+            width = min(int(float(section['depth'])), int(float(section['width']))) * 10 # Convert to mm
+            height = max(int(float(section['depth'])), int(float(section['width']))) * 10 # Convert to mm
+            fc = int(float(section['fc'])) # kg/cm2
+            
+            r3 = int(section['Long. R2 Bars'])
+            r2 = int(section['Long. R3 Bars'])
+            
+            long_bars = 2*r2 + 2*(r3 - 2)
+            cover = float(section['Cover']) * 10 # Convert to mm
+            rebar = section['Rebar']
+            rebar_est = section['Rebar. Est.']
+            actual_column = RectangularColumn(
+                    width=width,
+                    height=height,
+                    fc=str(fc),
+                    number_of_bars=long_bars,
+                    rebar_type=rebar,
+                    r2_bars=r2,
+                    r3_bars=r3,
+                    stirrup_type=rebar_est,
+                    cover=cover
+                    
+                )
+            detail = Detail(
+                name=detalle,
+                origin=origin_point,
+                width=width_detail,
+                height=height_detail
+            )
+            detail.set_column(actual_column)
+            detail.set_origin_for_col(actual_column.width, actual_column.height)
+            detalles.append(detail)
+            
+            counter += 1
+            
+        
+        drawing = Drawing(
+            filename=filename,
+            list_details=detalles
+        )
+        drawing.create_dxf()
+            
+            
+        
+            
+        
+        
+        # Call dxf drawer
+        # dxf_drawing = Drawing()
+        
     
     def show_info_stories(self):
         self.stories_window_ref.show()

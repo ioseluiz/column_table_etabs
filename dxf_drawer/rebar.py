@@ -1,4 +1,5 @@
 REBAR_PROPERTIES_MM = [
+    {'type': '#2', 'diameter': 6.350},
     {'type': '#3', 'diameter': 9.525},
     {'type': '#4', 'diameter': 12.7},
     {'type': '#5', 'diameter': 15.875},

@@ -59,7 +59,7 @@ class MainMenuScreen(QMainWindow):
         # --- Menu Buttons ---
         # self.btn_start_game = QPushButton("Crear cuadro de cols")
         # self.btn_connect_etabs = QPushButton("Conectar con archivo de ETABS abierto")
-        self.btn_identify_columns = QPushButton("Identificar Columnas")
+        self.btn_identify_columns = QPushButton("Cuadro de Columnas")
         self.btn_exit = QPushButton("Salir del Programa")
 
         # Set object names for specific styling

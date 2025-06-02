@@ -3,6 +3,14 @@ from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Alignment
 
 import math
+from pathlib import Path
+import os
+import json
+
+
+from collections import defaultdict
+
+
 
 REBAR_PROPERTIES_MM = [
     {'type': '#3', 'diameter': 9.525},
@@ -42,6 +50,63 @@ DIAGONAL_BORDER = Border(
 
 MAX_DISTANCIA_LIBRE_A_BARRA_APOYADA_MM = 150 #mm
 MAX_DISTANCIA_LIBRE_A_BARRA_APOYADA_PULGADAS = 6.0    # pulgadas
+
+
+from collections import defaultdict
+
+def agrupar_gridlines_por_contenido(datos):
+    """
+    Analiza una lista de datos y agrupa los 'GridLines' que son 
+    absolutamente idénticos.
+
+    Dos GridLines se consideran idénticos si tienen:
+    1. Exactamente la misma cantidad de filas (ocurrencias).
+    2. El contenido de todas sus filas es idéntico, sin importar el orden.
+
+    Args:
+        datos (list): Una lista de diccionarios con los datos.
+
+    Returns:
+        list: Una lista de diccionarios donde cada uno representa un grupo
+              de GridLines idénticos.
+    """
+    # Paso 1: Agrupar todas las filas por su 'GridLine'
+    gridlines_agrupados = defaultdict(list)
+    for fila in datos:
+        gridlines_agrupados[fila["GridLine"]].append(fila)
+
+    # Paso 2: Crear una "firma" de contenido para cada GridLine.
+    # Esta firma representa de forma única todo el contenido de un GridLine.
+    firmas = {}
+    for grid, filas in gridlines_agrupados.items():
+        # Convertimos cada fila (diccionario) en una tupla de pares (llave, valor)
+        # y las ordenamos para que el orden de las llaves no afecte.
+        filas_hasheables = [tuple(sorted(fila.items())) for fila in filas]
+        
+        # Ordenamos la lista de tuplas para que el orden de las filas no afecte.
+        # Finalmente, lo convertimos todo en una gran tupla para que sea "hasheable".
+        firma_contenido = tuple(sorted(filas_hasheables))
+        firmas[grid] = firma_contenido
+
+    # Paso 3: Agrupar los GridLines que tienen la misma firma de contenido
+    grupos_por_firma = defaultdict(list)
+    for grid, firma in firmas.items():
+        grupos_por_firma[firma].append(grid)
+
+    # Paso 4: Construir el resultado final simplificado
+    resultado_final = []
+    contador_grupo = 1
+    
+    # Iteramos sobre los valores del diccionario de grupos (las listas de GridLines)
+    for lista_de_grids in grupos_por_firma.values():
+        grupo_dict = {
+            "grupo": f"Grupo {contador_grupo}",
+            "gridlines_iguales": sorted(lista_de_grids)
+        }
+        resultado_final.append(grupo_dict)
+        contador_grupo += 1
+        
+    return resultado_final
 
 
 def get_diameter(rebar):
@@ -256,7 +321,13 @@ def detectar_bxh_empty(work_sheet, stories_reverse, grid_lines):
 
 
 
-def generate_excel_table(stories_data, grid_lines, column_records: list[dict]):
+def generate_excel_table(folder_path, stories_data, grid_lines_data, column_records: list[dict]):
+    
+    # GridLines
+    grid_lines = []
+    for x in grid_lines_data:
+        grid_lines.append(x['GridLine'])
+        
 
     stories_reverse = []
 
@@ -336,39 +407,54 @@ def generate_excel_table(stories_data, grid_lines, column_records: list[dict]):
         )
         counter_col += 1
 
-    # Column Dataframe
-    for record in column_records:
-        print(record)
-        excel_column = get_excel_col(gridline_columns, record['GridLine'])
-        excel_row = get_excel_row(col_rows, record['start_end_level'])
-        if excel_row:
-            if excel_column:
-                    #bxh
-                    ws.cell(row=excel_row, column=excel_column).value = record['bxh']
-                    #f'c
-                    ws.cell(row=excel_row+1, column=excel_column).value = record['fc']
-                    # As
-                    ws.cell(row=excel_row+2, column=excel_column).value = record['As']
-                    # Detalle
-                    rebar_diameter = get_diameter(record['Rebar'])/10
-                    # Lo
-                    h_floor = 10 * (float(record['End Z']) - float(record['Start Z'])) # convert to mm
-                    ws.cell(row=excel_row+7, column=excel_column).value = calcular_lo_aci_318_19(max(float(record['depth'])*10, float(record['width'])*10), h_floor, "mm") / 10
-                    # Espaciamiento Estribos en Lo
-                    ws.cell(row=excel_row+3, column=excel_column).value =calcular_espaciamiento_estribos_confinamiento_columnas_aci_318_19(
-                        min(float(record['depth'])*10, float(record['width'])*10),
-                        rebar_diameter*10,
-                        420, # grado 60
-                        300,
-                        unidades="mm",
-                        fy_units="MPa"
-                    )[0]
-                    ws.cell(row=excel_row+8, column=excel_column).value = record['Detalle No.']
 
-    # deterctar cells bxh empties
-    detectar_bxh_empty(ws, stories_reverse, grid_lines)
+    # check start_level and end_level of columns in each gridlines
+    columns_records_reduced = []
+    for record in column_records:
+        if record['nivel start'] != record['nivel end']:
+            #print(record['GridLine'], record['nivel start'], record['nivel end'], record['Sección'],record['bxh'],record['As'],record['fc'],record['Rebar. Est.'],record['Detalle No.'])
+            columns_records_reduced.append(record)
+            
+    analisis_gridlines_iguales = agrupar_gridlines_por_contenido(columns_records_reduced)
+    
+   
+    print(json.dumps(analisis_gridlines_iguales, indent=2))
+            
+            
+        
+    # Column Dataframe
+    # for record in column_records:
+    #     print(record)
+    #     excel_column = get_excel_col(gridline_columns, record['GridLine'])
+    #     excel_row = get_excel_row(col_rows, record['start_end_level'])
+    #     if excel_row:
+    #         if excel_column:
+    #                 #bxh
+    #                 ws.cell(row=excel_row, column=excel_column).value = record['bxh']
+    #                 #f'c
+    #                 ws.cell(row=excel_row+1, column=excel_column).value = record['fc']
+    #                 # As
+    #                 ws.cell(row=excel_row+2, column=excel_column).value = record['As']
+    #                 # Detalle
+    #                 rebar_diameter = get_diameter(record['Rebar'])/10
+    #                 # Lo
+    #                 h_floor = 10 * (float(record['End Z']) - float(record['Start Z'])) # convert to mm
+    #                 ws.cell(row=excel_row+7, column=excel_column).value = calcular_lo_aci_318_19(max(float(record['depth'])*10, float(record['width'])*10), h_floor, "mm") / 10
+    #                 # Espaciamiento Estribos en Lo
+    #                 ws.cell(row=excel_row+3, column=excel_column).value =calcular_espaciamiento_estribos_confinamiento_columnas_aci_318_19(
+    #                     min(float(record['depth'])*10, float(record['width'])*10),
+    #                     rebar_diameter*10,
+    #                     420, # grado 60
+    #                     300,
+    #                     unidades="mm",
+    #                     fy_units="MPa"
+    #                 )[0]
+    #                 ws.cell(row=excel_row+8, column=excel_column).value = record['Detalle No.']
+
+    # # deterctar cells bxh empties
+    # detectar_bxh_empty(ws, stories_reverse, grid_lines)
                 
 
     
-    wb.save('cuadro_columnas.xlsx')
-    print('ARCHIVO EXCEL CREADO')
+    # wb.save('cuadro_columnas.xlsx')
+    # print('ARCHIVO EXCEL CREADO')

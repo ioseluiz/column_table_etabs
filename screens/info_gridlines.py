@@ -55,11 +55,16 @@ class InfoGridLinesScreen(QWidget):
         for fila in range(self.table_gridlines_info.rowCount()):
             item_original = self.table_gridlines_info.item(fila, 0)
             item_nuevo = self.table_gridlines_info.item(fila,3)
-            
+           
+        
             # Asegurarse de que ambas celdas tengan texto
             if item_original and item_original.text() and item_nuevo and item_nuevo.text():
                 valor_original = item_original.text().strip()
                 valor_nuevo = item_nuevo.text().strip()
+                 # Cambiar en la tabla y borrar nuevo valor
+                self.table_gridlines_info.item(fila,0).setText(item_nuevo.text())
+                self.table_gridlines_info.item(fila,3).setText("")
+            
                 if valor_original:
                     mapa[valor_original] = valor_nuevo
             
