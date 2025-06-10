@@ -13,9 +13,13 @@ REBAR_PROPERTIES_MM = [
 ]
 
 class Rebar:
-    def __init__(self, type: str):
+    def __init__(self, type: str, id: str=None):
         self.type = type
         self.diameter = self.get_diameter()
+        self.is_soportada = False
+        self.is_corner = False
+        self.has_crosstie = False
+        self.id = id
 
     def set_coord_x(self, coord_x: float):
         self.coord_x = coord_x
@@ -28,3 +32,6 @@ class Rebar:
             if bar['type'] == self.type:
                 return bar['diameter']
         return None
+    
+    def get_coords(self):
+        return (self.coord_x, self.coord_y)

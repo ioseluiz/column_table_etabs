@@ -83,7 +83,7 @@ def establecer_units_etabs(
 def obtener_sapmodel_etabs():
     sap_model = None
     ETABSObject = None
-
+   
     try:
         try:
             print("Intentando conectar con una instancia activa de ETABS...")
@@ -113,6 +113,9 @@ def obtener_sapmodel_etabs():
         return None
 
     return sap_model
+
+def close_connection():
+    comtypes.CoUninitialize()
 
 
 def get_story_by_elevation(stories_data, elevation):

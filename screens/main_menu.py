@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
     QFrame,
     QProgressDialog
 )
+import comtypes.client
 from PyQt5.QtGui import QFont, QPixmap
 from PyQt5.QtCore import Qt, QSize, QT_VERSION_STR, PYQT_VERSION_STR, QObject, pyqtSignal, QThread
 
@@ -34,11 +35,17 @@ class Worker(QObject):
     progress = pyqtSignal(str)
     crear_ventana_signal = pyqtSignal(dict)
     
-    def __init__(self, sap_model):
+    def __init__(self):
         super().__init__()
-        self.sap_model = sap_model
+       
     
     def run(self):
+        comtypes.CoInitialize()
+         # Obtener Modelo
+        self.sap_model = etabs.obtener_sapmodel_etabs()
+        
+        comtypes.CoUninitialize()
+        
          # Set units to kg-cm
         etabs.establecer_units_etabs(
             self.sap_model, UNITS_FORCE_KGF, UNITS_LENGTH_CM, UNITS_TEMP_C
@@ -313,12 +320,11 @@ class MainMenuScreen(QMainWindow):
         self.progress_dialog.setWindowModality(Qt.WindowModal)
         self.progress_dialog.show()
         
-        # Obtener Modelo
-        sap_model = etabs.obtener_sapmodel_etabs()
+       
         
         # --- Configuración del Hilo y el Trabajador ---
         self.thread = QThread()
-        self.trabajador = Worker(sap_model)
+        self.trabajador = Worker()
         
         # Mover el trabajador al hilo
         self.trabajador.moveToThread(self.thread)
@@ -392,7 +398,7 @@ class MainMenuScreen(QMainWindow):
             
         # Crear y esconder  InfoGridLinesScreen
         if not self.info_gridlines_screen:
-            self.info_gridlines_screen = InfoGridLinesScreen(gridlines_data)
+            self.info_gridlines_screen = InfoGridLinesScreen(gridlines_data, stories_with_elevations)
             
             self.info_gridlines_screen.hide()
         # Crear y mostrar ColumnDataScreen

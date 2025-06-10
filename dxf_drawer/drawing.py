@@ -184,6 +184,80 @@ class Drawing:
 
             # Corner Hook Polyline
             msp.add_lwpolyline(detail.column.corner_hook_coords_left,dxfattribs={"layer": "Rebar"} )
+            msp.add_lwpolyline(detail.column.corner_hook_coords_right, dxfattribs={"layer": "Rebar"})
+
+
+            # Cross Ties
+            ## Vertical
+            print('CrossTies Verticales')
+            print(detail.column.crossties_vert)
+            for tie in detail.column.crossties_vert:
+                msp.add_lwpolyline(tie['points_1'], dxfattribs={"layer": "Rebar"})
+                msp.add_lwpolyline(tie['points_2'], dxfattribs={"layer": "Rebar"})
+
+            ## Horizontal
+            print("CrossTies Horizontal")
+            print(detail.column.crossties_horizontal)
+            for tie in detail.column.crossties_horizontal:
+                msp.add_lwpolyline(tie['points_1'], dxfattribs={"layer": "Rebar"})
+                msp.add_lwpolyline(tie['points_2'], dxfattribs={"layer": "Rebar"})
+
+            ## Top Seismic Hooks
+            print("Top Seismic Hooks")
+            for hook in detail.column.tie_top_arcs:
+                msp.add_arc(
+                    center=hook.center_point,
+                    radius=hook.radius,
+                    start_angle=hook.start_angle,
+                    end_angle=hook.end_angle,
+                    is_counter_clockwise=False,
+                    dxfattribs={"layer": "Rebar"}
+                )
+
+            for poly in detail.column.tie_top_hook_points:
+                msp.add_lwpolyline(poly, dxfattribs={"layer": "Rebar"})
+            
+            ## Botom Seismic Hooks
+            for hook in detail.column.tie_bottom_arcs:
+                msp.add_arc(
+                    center=hook.center_point,
+                    radius=hook.radius,
+                    start_angle=hook.start_angle,
+                    end_angle=hook.end_angle,
+                    is_counter_clockwise=False,
+                    dxfattribs={"layer": "Rebar"}
+                )
+            
+            for poly in detail.column.tie_bottom_hook_points:
+                msp.add_lwpolyline(poly, dxfattribs={"layer": "Rebar"})
+
+            ## Left Seismic Hooks
+            for hook in detail.column.tie_left_arcs:
+                msp.add_arc(
+                    center=hook.center_point,
+                    radius=hook.radius,
+                    start_angle=hook.start_angle,
+                    end_angle=hook.end_angle,
+                    is_counter_clockwise=True,
+                    dxfattribs={"layer": "Rebar"}
+                )
+
+            for poly in detail.column.tie_left_hook_points:
+                msp.add_lwpolyline(poly, dxfattribs={"layer": "Rebar"})
+
+            for hook in detail.column.tie_right_arcs:
+                msp.add_arc(
+                    center=hook.center_point,
+                    radius=hook.radius,
+                    start_angle=hook.start_angle,
+                    end_angle=hook.end_angle,
+                    is_counter_clockwise=True,
+                    dxfattribs={"layer": "Rebar"}
+                )
+
+            for poly in detail.column.tie_right_hook_points:
+                msp.add_lwpolyline(poly, dxfattribs={"layer": "Rebar"})
+
 
 
            
